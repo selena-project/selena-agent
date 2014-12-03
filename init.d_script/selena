@@ -12,21 +12,28 @@
 ### END INIT INFO
 
 # The following part always gets executed.
-echo "This part always gets executed"
+#echo "This part always gets executed"
 
 # The following part carries out specific functions depending on arguments.
 case "$1" in
   start)
     echo "Starting selena client"
-    /root/bin/scripts/startSelenaClient.sh
+    /usr/bin/selena_agent.py start
     ;;
   stop)
     echo "Stopping selena client"
-    /usr/bin/killall python
-    echo "Selena client is dead"
+    /usr/bin/selena_agent.py stop
     ;;
+  restart)
+    echo "Restarting selena client"
+    /usr/bin/selena_agent.py restart
+    ;;
+  status)
+    echo "Getting selena status"
+    /usr/bin/selena_agent.py status
+    ;;  
   *)
-    echo "Usage: /etc/init.d/selena {start|stop}"
+    echo "Usage: /etc/init.d/selena {start|stop|restart/status}"
     exit 1
     ;;
 esac
