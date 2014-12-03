@@ -40,12 +40,21 @@ BIN_SCRIPT=./bin/selena_agent.py
 SELENA_SVC=`basename ${INIT_SCRIPT}`
 SELENA_BIN=`basename ${BIN_SCRIPT}`
 
-UPDATE_INIT=`which update-rc.d`
-[[ $? -eq 0 ]] || { echo "*** Couldn't find 'update-rc.d'. Make sure it is instaled on your system."; exit 1; }
+command -v update-rc.d >/dev/null 2>&1 || { echo "update-rc.d is required but it's not installed. Aborting."; exit 1; }
+
 
 # Checking whether Selena agent init script is already installed"
 [[ -f ${INIT_DIR_DEST}/${SELENA_SVC} ]] && { echo "Selena agent init script is already installed. Run uninstall first"; exit 1; }
 [[ -f ${BIN_DIR_DEST}/${SELENA_SVC} ]] && { echo "Selena agent executable is already installed. Run uninstall first"; exit 1; }
+
+
+# Check that pyxs is installed. If not, go ahead and install it
+if ! $(python -c "from pyxss import Client, PyXSError" &> /dev/null); then
+    command -v pip >/dev/null 2>&1 || { echo "*** PIP is required to install PyXS but it's not found. Aborting."; exit 1; }
+    /usr/bin/yes | pip install pyxs
+    [[ $? -eq 0 ]] || { echo "*** PIP couldn't install PyXS (check your network). Aborting."; exit 1; }
+fi
+
 
 # Copy the selena agent init script
 cp ${INIT_SCRIPT} ${INIT_DIR_DEST}
@@ -60,8 +69,9 @@ cp ${BIN_SCRIPT} ${BIN_DIR_DEST}
 chmod +x ${BIN_DIR_DEST}/${SELENA_BIN}
 [[ $? -eq 0 ]] || { echo "*** Failed to give selena script execution rights (${BIN_DIR_DEST}/${SELENA_BIN})."; exit 1; }
 
+
 # Install the service
-${UPDATE_INIT} ${SELENA_SVC} defaults
+update-rc.d ${SELENA_SVC} defaults
 [[ $? -eq 0 ]] || { echo "*** Failed to configure selena daemon to start on boot."; exit 1; }
 
 
