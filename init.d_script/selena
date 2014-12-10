@@ -19,21 +19,24 @@ case "$1" in
   start)
     echo "Starting selena client"
     /usr/bin/selena_agent.py start
+    /usr/bin/selena_agent.py status
     ;;
   stop)
     echo "Stopping selena client"
     /usr/bin/selena_agent.py stop
+    /usr/bin/selena_agent.py status
     ;;
   restart)
     echo "Restarting selena client"
     /usr/bin/selena_agent.py restart
+    /usr/bin/selena_agent.py status
     ;;
   status)
     echo "Getting selena status"
     /usr/bin/selena_agent.py status
     ;;  
   *)
-    echo "Usage: /etc/init.d/selena {start|stop|restart/status}"
+    echo "Usage: /etc/init.d/selena {start|stop|restart|status}"
     exit 1
     ;;
 esac

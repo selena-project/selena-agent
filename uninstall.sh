@@ -43,20 +43,19 @@ SELENA_BIN=`basename ${BIN_SCRIPT}`
 
 
 # Stop the selena agent from starting on boot
-UPDATE_INIT=`which update-rc.d`
-[[ $? -eq 0 ]] || { echo "*** Couldn't find 'update-rc.d'. Make sure it is instaled on your system."; exit 1; }
-${UPDATE_INIT} ${SELENA_SVC} remove
+command -v update-rc.d >/dev/null 2>&1 || { echo "*** Couldn't find 'update-rc.d'. Make sure it is installed on your system."; exit 1; }
+update-rc.d ${SELENA_SVC} remove
 
 # Stop any running instances of Selena
-service ${SELENA_SVC} stop
-[[ $? -eq 0 ]] || { echo "*** Failed to stop the selena agent gracefully."; }
+service ${SELENA_SVC} status | grep running
+[[ $? -eq 0 ]] && {  echo "*** Stopping gracefully the selena agent process (SIGTERM)"; service ${SELENA_SVC} stop; }
 PID=`ps aux | grep python | grep ${SELENA_BIN} | awk '{print $2}'`
-[[ -n "${PID}" ]] && { echo "*** Killing a left-over selena agent process (SIGKILL)"; kill -9 ${PID}; } 
+[[ -n "${PID}" ]] && { echo "*** Force-killing the selena agent process (SIGKILL)"; kill -9 ${PID}; }
 
 
 # Remove the init script and the executable
-rm ${INIT_DIR_DEST}/${SELENA_SVC}
-rm ${BIN_DIR_DEST}/${SELENA_BIN}
+[[ -f ${INIT_DIR_DEST}/${SELENA_SVC} ]] && rm ${INIT_DIR_DEST}/${SELENA_SVC}
+[[ -f ${BIN_DIR_DEST}/${SELENA_BIN} ]] && rm ${BIN_DIR_DEST}/${SELENA_BIN}
 
 
 echo "*** DONE"

@@ -49,7 +49,7 @@ command -v update-rc.d >/dev/null 2>&1 || { echo "update-rc.d is required but it
 
 
 # Check that pyxs is installed. If not, go ahead and install it
-if ! $(python -c "from pyxss import Client, PyXSError" &> /dev/null); then
+if ! $(python -c "from pyxs import Client, PyXSError" &> /dev/null); then
     command -v pip >/dev/null 2>&1 || { echo "*** PIP is required to install PyXS but it's not found. Aborting."; exit 1; }
     /usr/bin/yes | pip install pyxs
     [[ $? -eq 0 ]] || { echo "*** PIP couldn't install PyXS (check your network). Aborting."; exit 1; }

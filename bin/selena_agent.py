@@ -47,7 +47,10 @@ import pwd
 
 MANAGEMENT_IFACE = 'eth0'
 SELENA_AGENT_ERROR_MSG = '>>>>SELENA AGENT ERROR<<<<'
-
+SELENA_XS_LOCK_FREE = 'FREE'
+SELENA_XS_LOCK_RESERVED = 'RESERVED'
+SELENA_XS_LOCK_DONE = 'DONE'
+SELENA_XS_LOCK_DISABLED = 'DISABLED'
 
 class CommandTools(object):
     '''
@@ -279,7 +282,7 @@ class Daemon:
         """Start the daemon."""
         # Check for a pidfile to see if the daemon already runs
         try:
-            with open(self.pidfile,'r') as pf:
+            with open(self.pidfile, 'r') as pf:
                 pid = int(pf.read().strip())
         except (IOError, TypeError) as e:
             pid = None
@@ -331,14 +334,14 @@ class Daemon:
         except (IOError, TypeError) as e:
             pid = None
         if not pid:
-            sys.stderr.write("Selena-agent service is stopped (pid file \'%s\' doesn't exist)\n" % self.pidfile)
+            sys.stderr.write("selena-agent service stop/waiting \n")
             return False
         try:
             with open("/proc/%d/status" % pid, 'r'):
-                sys.stderr.write("Selena-agent service is up and running (PID=%d)\n" % pid)
+                sys.stderr.write("selena-agent service start/running \n (PID is %d)\n" % pid)
                 return True
         except IOError as e:
-            sys.stderr.write("Selena-agent service is stopped\n")
+            sys.stderr.write("selena-agent service stop/waiting \n")
         return False
 
 
@@ -433,7 +436,7 @@ class SelenaAgentDaemon(Daemon):
                      pValue[i] == '5' or \
                      pValue[i] == '6' or \
                      pValue[i] == '7':
-                    retVal += chr(int(pValue[i:i+3],8))
+                    retVal += chr(int(pValue[i:i+3], 8))
                     i += 2
             else:
                 retVal += pValue[i]
@@ -471,25 +474,30 @@ class SelenaAgentDaemon(Daemon):
         self.logger.info("Starting the Selena agent ")
         # Check if Selena XS path is created (from Domain-0)
         if self.readXSvalue('Selena') is None:
+            self.logger.error("Failed to read path 'Selena' on Xenstore")
             self.stop()
         # Check that the Selena/cmd path exists and is readable
         if self.readXSvalue('Selena/cmd') is None:
+            self.logger.error("Failed to read path 'Selena/cmd' on Xenstore")
             self.stop()
         # Read the management IP address
         tmpVal = self.readXSvalue('Selena/bootipaddr')
         if tmpVal is None:
+            self.logger.error("Failed to read path 'Selena/bootipaddr' on Xenstore")
             self.stop()
         mgmtIpAddr = tmpVal.strip()
         # Read the management netmask
         tmpVal = self.readXSvalue('Selena/bootipmask')
         if tmpVal is None:
+            self.logger.error("Failed to read path 'Selena/bootipmask' on Xenstore")
             self.stop()
         mgmtNetmask = tmpVal.strip()
         # Configure the management interface
         (status, out) = EXEC.runCommand('/sbin/ifconfig ' + MANAGEMENT_IFACE + ' ' + mgmtIpAddr + ' netmask ' + mgmtNetmask)
         self.checkCmdExitStatus(status, "Could not configure the management interface: \n" + 'ifconfig ' + MANAGEMENT_IFACE + ' ' + mgmtIpAddr + ' netmask ' + mgmtNetmask)
         # Free the lock
-        if not self.writeXSvalue('Selena/lock', 'FREE'):
+        if not self.writeXSvalue('Selena/lock', SELENA_XS_LOCK_FREE):
+            self.logger.error("Failed to free the lock (path 'Selena/lock' on Xenstore)")
             self.stop()
         #---------------------------------------------------
         # Here goes the main loop of the selena agent daemon
@@ -523,16 +531,22 @@ class SelenaAgentDaemon(Daemon):
             else:
                 if not self.stopXS:
                     self.logger.error("Failed to read the command sent from Selena")
+            # Mark the lock as free
+            if not self.writeXSvalue('Selena/lock', SELENA_XS_LOCK_DONE):
+                self.logger.error("Failed to release the lock (path 'Selena/lock' on Xenstore)")
+                self.stop()
 
     def stopGracefully(self, signum, frame):
         self.stopXS = True
         EXEC.killAllProcesses()
         if self.xsClient:
+            self.writeXSvalue('Selena/lock', SELENA_XS_LOCK_DISABLED)
             # Stop the main client
             if self.xsClient.tx_id:
                 self.xsClient.transaction_end(commit=True)
             self.xsClient.connection.disconnect()
         self.logger.info("The selena agent has been stopped")
+        sys.exit()
 
 
 if __name__ == "__main__":
